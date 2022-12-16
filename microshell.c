@@ -18,14 +18,13 @@ int	ft_strlen(char *str)
 
 void	ft_exec(char **av, int i, char **env)
 {
-	int p;
 	int j;
 	int fd[2];
 	int pid;
 	int tmp;
+
 	j  = 0;
-	p = 0;
-	tmp = dup(0);
+	tmp = dup(0);//here
 	av[i] = NULL;
 	while (av[j])
 	{
@@ -33,40 +32,41 @@ void	ft_exec(char **av, int i, char **env)
 		while (av[j] && strcmp(av[j], "|") && strcmp(av[j], ";"))
 			j++;
 		if (av[j] && strcmp(av[j], "|") == 0)
-			pipe(fd);
+		{
+			if (pipe(fd) == -1)
+			{
+				write(2, "error: fatal\n", 13);
+				exit(1);
+			}
+		}
 		pid = fork();
+		if (pid < 0)
+		{
+			write(2, "error: fatal\n", 13);
+			exit(1);
+		}
 		if (pid == 0)
 		{
 			if (av[j] && strcmp(av[j], "|") == 0)
 			{
-				dup2(fd[1], 1);
+				dup2(fd[1], 1);//here
 				close(fd[0]);
 				close(fd[1]);
 			}
 			av[j] = NULL;
-			dup2(tmp, 0);
+			dup2(tmp, 0);//here
 			close(tmp);
-			//if (p == 0)
-				write(2, "--> ", 4);
-				write(2, av[i], ft_strlen(av[i]));
-				write(2, " <-\n", 4);
-				execve(av[i], &av[i], env);
-			//else
-			{
-				char buff[100];
-				read(0, buff, 22);
-				write(2, "--> ", 4);
-				write(2, buff, 22);
-				write(2, " <-\n", 4);
-			}
-			exit(0);
+			execve(av[i], &av[i], env);
+			write(2, "error: cannot execute ", 22);
+			write(2, av[i], ft_strlen(av[i]));
+			write(2, "\n", 1);
+			exit(1);
 		}
 		else
 		{
 			close(fd[1]);
 			close(tmp);
 			tmp = fd[0];
-			p++;
 			if (av[j] != NULL)
 				j++;
 		}
@@ -79,13 +79,11 @@ void	ft_exec(char **av, int i, char **env)
 void	ft_cd(char **av, int i)
 {
 	if (i != 2)
-	{
-		write(2, "", ft_strlen(""));
-		write(2, "\n", 1);
-	}
+		write(2, "error: cd: bad arguments\n", 25);
 	else if (chdir(av[1]))
 	{
-		write(2, "", ft_strlen(""));
+		write(2, "error: cd: cannot change directory to ", 38);
+		write(2, av[1], ft_strlen(av[1]));
 		write(2, "\n", 1);
 	}	
 }
@@ -93,8 +91,8 @@ void	ft_cd(char **av, int i)
 int	main(int ac, char **av, char **env)
 {
 	int	i;
-	int	status;
 	char	*tmp;
+
 	if (ac == 1)
 		return (0);
 	av = &av[1];
@@ -111,7 +109,7 @@ int	main(int ac, char **av, char **env)
 			ft_exec(av, i, env);
 			av[i] = tmp;
 		}
-		if (i != 0 && av[i] != NULL)
+		if ((i != 0 && av[i] != NULL) || (av[i] != NULL && strcmp(av[i], ";") == 0))
 		{
 			av = &av[i + 1];
 			i = 0;
